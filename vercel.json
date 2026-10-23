@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/store",
+      "destination": "/store-cart.html"
+    },
+    {
+      "source": "/shop",
+      "destination": "/store-cart.html"
+    }
+  ]
+}
