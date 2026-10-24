@@ -27,7 +27,7 @@ var TABS=[["req","Requests",reqs],["ord","Orders",ords],
 ["cin","Care Circle International",function(){listEd("circle_in",LF.cin)}],
 ["area","Coverage areas",function(){listEd("areas",LF.area)}],
 ["del","Delivery",function(){listEd("delivery",LF.del)}],
-["pol","Policies",polEd],["bro","Brochure",broEd],["staff","Staff",staffEd]];
+["pol","Policies",polEd],["bro","Brochure",broEd],["analytics","Analytics",analyticsEd],["staff","Staff",staffEd]];
 function shell(){$("#app").innerHTML='<header><b>AUREVIA Admin</b><span class="n" style="color:#e2c57c">'+role+'</span><button id="al">Alerts</button><button onclick="out()">Sign out</button></header><div id="tabs">'+TABS.filter(function(t){return t[0]!="staff"||role=="owner"}).map(function(t){return'<button data-t="'+t[0]+'">'+t[1]+'<span class="bd" id="b-'+t[0]+'" hidden></span></button>'}).join("")+'</div><p id="msg" role="status"></p><main id="main"></main>';
 $("#tabs").onclick=function(e){var t=e.target.closest("button");if(t)go(t.dataset.t)};
 $("#al").onclick=function(){if(window.Notification)Notification.requestPermission().then(function(p){msg(p=="granted"?"Alerts on. You will be notified while this page is open.":"Alerts were not allowed on this device.")})};
@@ -110,4 +110,31 @@ async function staffEd(){var r=await sb.from("staff").select("*").order("email")
 $("#main").innerHTML='<p class="n">Choose exactly which dashboard sections each supervisor can access. Owners keep full access.</p>'+rows.map(function(x,i){var selected=perm[x.email]||["req","ord"];return'<div class="card"><div class="row"><b>'+esc(x.email)+'</b><span class="tag">'+esc(x.role)+'</span></div>'+(x.role==="supervisor"?'<div class="r2">'+sections.map(function(s){return'<label class="k"><input type="checkbox" data-perm="'+i+'" data-section="'+s[0]+'"'+(selected.indexOf(s[0])>=0?' checked':'')+'> '+s[1]+'</label>'}).join("")+'</div><button data-saveperm="'+i+'">Save permissions</button>':'<p class="n">Owner has full access.</p>')+'<button data-rm="'+esc(x.email)+'">Remove</button></div>'}).join("")+'<form class="card" id="sf"><label>Email<input name="e" type="email" required></label><label>Role<select name="r"><option value="supervisor">Supervisor</option><option value="owner">Owner</option></select></label><button class="btn">Add staff</button></form>';
 $("#sf").onsubmit=async function(e){e.preventDefault();var f=new FormData(this),email=f.get("e").trim().toLowerCase(),x=await sb.from("staff").insert({email:email,role:f.get("r")});if(x.error)msg(x.error.message);else{if(f.get("r")==="supervisor"){perm[email]=["req","ord"];await sb.from("private_settings").upsert({key:"supervisor_permissions",value:perm})}staffEd()}};
 $("#main").onclick=async function(e){var b=e.target.dataset;if(b.saveperm!==undefined){var row=rows[Number(b.saveperm)],chosen=Array.from($("#main").querySelectorAll('input[data-perm="'+b.saveperm+'"]:checked')).map(function(q){return q.dataset.section});perm[row.email]=Array.from(new Set(chosen));var saved=await sb.from("private_settings").upsert({key:"supervisor_permissions",value:perm});if(saved.error)msg(saved.error.message);else msg("Supervisor permissions saved privately.");}else if(b.rm&&confirm("Remove "+b.rm+"?")){var del=await sb.from("staff").delete().eq("email",b.rm);if(del.error)msg(del.error.message);else staffEd()}}}
+
+async function analyticsEd(){
+var m=$("#main"),days=30,events=[],period="30";
+m.innerHTML='<div class="card"><h2>Website Analytics</h2><p class="n">Anonymous website activity and business totals. Visitor tracking starts only after the public-site tracking script is installed.</p><label>Reporting period<select id="an-period"><option value="1">Today</option><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option></select></label><button class="btn" id="an-refresh">Refresh analytics</button></div><div id="an-stats" class="r2"></div><div class="card"><h3>Most viewed pages</h3><div id="an-pages">Loading…</div></div><div class="card"><h3>Recent website activity</h3><div id="an-events">Loading…</div></div>';
+async function load(){
+period=$("#an-period").value;days=Number(period);
+var since=new Date(Date.now()-days*86400000).toISOString();
+var e=await sb.from("website_events").select("event_type,page_path,visitor_id,created_at").gte("created_at",since).order("created_at",{ascending:false}).limit(5000);
+if(e.error){$("#an-stats").innerHTML='<p>Analytics could not load: '+esc(e.error.message)+'</p>';return}
+events=e.data||[];
+var uniq=new Set(events.filter(x=>x.event_type==="page_view").map(x=>x.visitor_id)).size;
+var views=events.filter(x=>x.event_type==="page_view").length;
+var clicks=events.filter(x=>x.event_type==="click").length;
+var now=new Date(Date.now()-30*60000).toISOString(),active=new Set(events.filter(x=>x.event_type==="page_view"&&x.created_at>=now).map(x=>x.visitor_id)).size;
+var start=since;
+var q=await sb.from("orders").select("id,status,payment_status,created_at").gte("created_at",start).limit(5000);
+var s=await sb.from("submissions").select("id,type,created_at").gte("created_at",start).limit(5000);
+var orders=q.data||[],subs=s.data||[];
+var cards=[["Unique visitors",uniq],["Page views",views],["Active (last 30 min)",period==="1"||period==="7"||period==="30"?active:active],["Button clicks",clicks],["Orders received",orders.length],["Payments received",orders.filter(x=>x.payment_status==="payment received").length],["Enquiries & applications",subs.length]];
+$("#an-stats").innerHTML=cards.map(x=>'<div class="card"><div class="n">'+x[0]+'</div><h2>'+x[1]+'</h2></div>').join("");
+var pages={};events.filter(x=>x.event_type==="page_view").forEach(x=>pages[x.page_path]=(pages[x.page_path]||0)+1);
+var sorted=Object.keys(pages).sort((a,b)=>pages[b]-pages[a]);
+$("#an-pages").innerHTML=sorted.length?sorted.slice(0,15).map(x=>'<div class="row"><span>'+esc(x)+'</span><b>'+pages[x]+'</b></div>').join(""):"No page views recorded yet. Install the public tracking script to begin.";
+$("#an-events").innerHTML=events.length?events.slice(0,40).map(x=>'<div class="row"><span>'+esc(x.event_type.replace(/_/g," "))+' · '+esc(x.page_path)+'</span><span class="n">'+new Date(x.created_at).toLocaleString()+'</span></div>').join(""):"No activity recorded yet.";
+}
+$("#an-refresh").onclick=load;$("#an-period").onchange=load;await load();
+}
 </script></body></html>
