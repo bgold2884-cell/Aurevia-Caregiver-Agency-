@@ -5,14 +5,21 @@
 var A=window.AUREVIA||{},D=window.AV_DEFAULTS||{},sb,role,lastNew=null,$=function(s){return document.querySelector(s)};
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function msg(t){var m=$("#msg");if(m){m.textContent=t;setTimeout(function(){m.textContent=""},5000)}}
-function out(){sb.auth.signOut().then(function(){location.reload()})}
+var inactivityTimer=null,inactivityEvents=["pointerdown","pointermove","keydown","scroll","touchstart","click"];
+function clearInactivity(){if(inactivityTimer)clearTimeout(inactivityTimer);inactivityTimer=null}
+function startInactivityLock(){clearInactivity();inactivityEvents.forEach(function(ev){document.addEventListener(ev,resetInactivity,{passive:true})});resetInactivity()}
+function stopInactivityLock(){clearInactivity();inactivityEvents.forEach(function(ev){document.removeEventListener(ev,resetInactivity)})}
+function resetInactivity(){clearInactivity();if(sb&&role)inactivityTimer=setTimeout(async function(){stopInactivityLock();await sb.auth.signOut();alert("For your security, AUREVIA Admin was signed out after 10 minutes of inactivity. Please sign in again.");location.reload()},10*60*1000)}
+function out(){stopInactivityLock();sb.auth.signOut().then(function(){location.reload()})}
 if(!/^https/.test(A.url||"")){$("#app").innerHTML='<div class="box"><h2>Almost ready</h2><p>Open config.js and paste your Supabase URL and key. See SETUP.md.</p></div>'}else{sb=supabase.createClient(A.url,A.key);init()}
-async function init(){var s=(await sb.auth.getSession()).data.session;if(!s)return login();
+async function init(){var q=await sb.auth.getSession(),s=q.data.session;if(!s)return login();
 var r=await sb.from("staff").select("role").eq("email",s.user.email.toLowerCase()).maybeSingle();
-if(!r.data)return $("#app").innerHTML='<div class="box"><h2>No access</h2><p>'+esc(s.user.email)+' is not on the staff list. Ask the owner to add this email.</p><button onclick="out()">Sign out</button></div>';
-role=r.data.role;shell();await sb.from("website_events").insert({event_type:"admin_login",page_path:"/admin.html",visitor_id:"staff-"+s.user.id,metadata:{email:s.user.email.toLowerCase(),role:role}})}
-function login(){$("#app").innerHTML='<div class="box"><h2>AUREVIA Admin</h2><p>Enter your email. We will send you a sign-in link.</p><input id="em" type="email" placeholder="you@email.com"><p><button class="btn" id="go">Send sign-in link</button></p><p id="lm" class="n"></p></div>';
-$("#go").onclick=async function(){var r=await sb.auth.signInWithOtp({email:$("#em").value.trim().toLowerCase(),options:{emailRedirectTo:location.href.split("#")[0]}});$("#lm").textContent=r.error?r.error.message:"Check your email and tap the link."}}
+if(!r.data){await sb.auth.signOut();return $("#app").innerHTML='<div class="box"><h2>No access</h2><p>'+esc(s.user.email)+' is not on the staff list. Ask the owner to add this email.</p><button onclick="out()">Sign out</button></div>'}
+role=r.data.role;shell();startInactivityLock();await sb.from("website_events").insert({event_type:"admin_login",page_path:"/admin.html",visitor_id:"staff-"+s.user.id,metadata:{email:s.user.email.toLowerCase(),role:role}})}
+function login(){stopInactivityLock();$("#app").innerHTML='<div class="box"><h2>AUREVIA Admin</h2><p>Sign in with your registered staff email and password.</p><form id="loginForm"><label>Email address<input id="em" type="email" autocomplete="username" placeholder="you@email.com" required></label><label>Password<input id="pw" type="password" autocomplete="current-password" placeholder="Enter password" required></label><p><button class="btn" id="go" type="submit">Sign in</button></p></form><p><button id="forgot" type="button">Forgot password?</button> <button id="magic" type="button">Email sign-in link instead</button></p><p id="lm" class="n" role="status"></p></div>';
+$("#loginForm").onsubmit=async function(e){e.preventDefault();var em=$("#em").value.trim().toLowerCase(),pw=$("#pw").value;$("#go").disabled=true;$("#lm").textContent="Signing in…";var r=await sb.auth.signInWithPassword({email:em,password:pw});$("#go").disabled=false;if(r.error){$("#lm").textContent="Sign-in failed: "+r.error.message;return}await init()};
+$("#forgot").onclick=async function(){var em=$("#em").value.trim().toLowerCase();if(!em){$("#lm").textContent="Enter your email address first.";return}var r=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.href.split("#")[0]});$("#lm").textContent=r.error?r.error.message:"If this email is registered, a password-reset link has been sent. Check your inbox."};
+$("#magic").onclick=async function(){var em=$("#em").value.trim().toLowerCase();if(!em){$("#lm").textContent="Enter your email address first.";return}var r=await sb.auth.signInWithOtp({email:em,options:{emailRedirectTo:location.href.split("#")[0]}});$("#lm").textContent=r.error?r.error.message:"Check your email and tap the sign-in link."}}
 var LF={rates:[["n","Name"],["price","Monthly price (e.g. ₦150,000–₦200,000)"],["arr","Staff type and arrangement"],["sup","What is included (one per line)","ta"],["note","Note"]],
 cng:[["n","Plan name"],["price","Price (e.g. ₦30,000)"],["sub","Short heading"],["sup","What is included (one per line)","ta"],["suit","Suitable for"],["btn","Button name (e.g. Basic Care)"]],
 cin:[["n","Plan name"],["price","Price (e.g. $100)"],["text","What is included","ta"],["btn","Button name"]],
