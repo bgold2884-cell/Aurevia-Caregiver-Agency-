@@ -19,12 +19,10 @@ cin:[["n","Plan name"],["price","Price (e.g. $100)"],["text","What is included",
 svc:[["n","Service name"],["sub","Heading"],["intro","Introduction","ta"],["sup","What may be included (one per line)","ta"],["note","Limits and notes","ta"],["btn","Button text"]],
 plc:[["n","Option title"],["sub","Subheading"],["intro","Introduction","ta"],["sup","What may be included (one per line)","ta"],["body","Terms and details","ta"],["best","Best for"],["fee","Fee or rate (optional, shown on the page)"],["btn","Button text"]],
 area:[["n","Area name"]],del:[["n","Delivery area"],["fee","Delivery fee in naira (number)"],["eta","Estimated time (e.g. 1-2 days)"]]};
-var TABS=[["req","Requests",reqs],["ord","Orders",ords],["prod","Products",function(){crud("products",[["name","Product name"],["category","Category"],["description","Description","ta"],["price","Price in naira","n"],["stock","Stock quantity","n"],["available","Show as available","b",1],["image_url","Photo","img"]],"product","name")}],
+var TABS=[["req","Requests",reqs],["ord","Orders",ords],
+["prod","Products",function(){crud("products",[["name","Product name"],["category","Category"],["description","Description","ta"],["price","Price in naira","n"],["stock","Stock quantity","n"],["available","Show as available","b",1],["image_url","Photo","img"]],"product","name") }],
 ["blog","Blog",function(){crud("posts",[["title","Title"],["category","Category"],["body","Article text (leave a blank line between paragraphs)","ta"],["image_url","Photo (optional)","img"],["published","Published on the website (untick to unpublish)","b"]],"post","title")}],
-["svc","Care services",function(){listEd("services",LF.svc,1)}],["plc","Placement",function(){listEd("placement",LF.plc,1)}],["rates","Service rates",function(){listEd("rates",LF.rates)}],
-["cng","Care Circle Nigeria",function(){listEd("circle_ng",LF.cng)}],["cin","Care Circle International",function(){listEd("circle_in",LF.cin)}],
-["web","Website text",txtEd],["img","Images and logo",imgEd],["area","Coverage areas",function(){listEd("areas",LF.area)}],["contact","Contact and social",contactEd],["del","Delivery",function(){listEd("delivery",LF.del)}],
-["pol","Policies",polEd],["bro","Brochure",broEd],["staff","Staff",staffEd]];
+["staff","Staff",staffEd]]
 function shell(){$("#app").innerHTML='<header><b>AUREVIA Admin</b><span class="n" style="color:#e2c57c">'+role+'</span><button id="al">Alerts</button><button onclick="out()">Sign out</button></header><div id="tabs">'+TABS.filter(function(t){return t[0]!="staff"||role=="owner"}).map(function(t){return'<button data-t="'+t[0]+'">'+t[1]+'<span class="bd" id="b-'+t[0]+'" hidden></span></button>'}).join("")+'</div><p id="msg" role="status"></p><main id="main"></main>';
 $("#tabs").onclick=function(e){var t=e.target.closest("button");if(t)go(t.dataset.t)};
 $("#al").onclick=function(){if(window.Notification)Notification.requestPermission().then(function(p){msg(p=="granted"?"Alerts on. You will be notified while this page is open.":"Alerts were not allowed on this device.")})};
