@@ -27,8 +27,8 @@ var TABS=[["req","Requests",reqs],["ord","Orders",ords],
 ["cin","Care Circle International",function(){listEd("circle_in",LF.cin)}],
 ["area","Coverage areas",function(){listEd("areas",LF.area)}],
 ["del","Delivery",function(){listEd("delivery",LF.del)}],
-["pol","Policies",polEd],["bro","Brochure",broEd],["analytics","Analytics",analyticsEd],["staff","Staff",staffEd]];
-function shell(){$("#app").innerHTML='<header><b>AUREVIA Admin</b><span class="n" style="color:#e2c57c">'+role+'</span><button id="al">Alerts</button><button onclick="out()">Sign out</button></header><div id="tabs">'+TABS.filter(function(t){return t[0]!="staff"||role=="owner"}).map(function(t){return'<button data-t="'+t[0]+'">'+t[1]+'<span class="bd" id="b-'+t[0]+'" hidden></span></button>'}).join("")+'</div><p id="msg" role="status"></p><main id="main"></main>';
+["texts","Website text",txtEd],["pol","Policies",polEd],["bro","Brochure",broEd],["analytics","Analytics",analyticsEd],["staff","Staff",staffEd]];
+function shell(){$("#app").innerHTML='<header><b>AUREVIA Admin</b><span class="n" style="color:#e2c57c">'+role+'</span><button id="al">Alerts</button><button onclick="out()">Sign out</button></header><div id="tabs">'+TABS.filter(function(t){return (t[0]!="staff"&&t[0]!="texts")||role=="owner"}).map(function(t){return'<button data-t="'+t[0]+'">'+t[1]+'<span class="bd" id="b-'+t[0]+'" hidden></span></button>'}).join("")+'</div><p id="msg" role="status"></p><main id="main"></main>';
 $("#tabs").onclick=function(e){var t=e.target.closest("button");if(t)go(t.dataset.t)};
 $("#al").onclick=function(){if(window.Notification)Notification.requestPermission().then(function(p){msg(p=="granted"?"Alerts on. You will be notified while this page is open.":"Alerts were not allowed on this device.")})};
 go("req");counts();setInterval(counts,60000)}
