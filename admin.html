@@ -10,7 +10,7 @@ if(!/^https/.test(A.url||"")){$("#app").innerHTML='<div class="box"><h2>Almost r
 async function init(){var s=(await sb.auth.getSession()).data.session;if(!s)return login();
 var r=await sb.from("staff").select("role").eq("email",s.user.email.toLowerCase()).maybeSingle();
 if(!r.data)return $("#app").innerHTML='<div class="box"><h2>No access</h2><p>'+esc(s.user.email)+' is not on the staff list. Ask the owner to add this email.</p><button onclick="out()">Sign out</button></div>';
-role=r.data.role;shell()}
+role=r.data.role;shell();await sb.from("website_events").insert({event_type:"admin_login",page_path:"/admin.html",visitor_id:"staff-"+s.user.id,metadata:{email:s.user.email.toLowerCase(),role:role}})}
 function login(){$("#app").innerHTML='<div class="box"><h2>AUREVIA Admin</h2><p>Enter your email. We will send you a sign-in link.</p><input id="em" type="email" placeholder="you@email.com"><p><button class="btn" id="go">Send sign-in link</button></p><p id="lm" class="n"></p></div>';
 $("#go").onclick=async function(){var r=await sb.auth.signInWithOtp({email:$("#em").value.trim().toLowerCase(),options:{emailRedirectTo:location.href.split("#")[0]}});$("#lm").textContent=r.error?r.error.message:"Check your email and tap the link."}}
 var LF={rates:[["n","Name"],["price","Monthly price (e.g. ₦150,000–₦200,000)"],["arr","Staff type and arrangement"],["sup","What is included (one per line)","ta"],["note","Note"]],
@@ -32,7 +32,7 @@ function shell(){$("#app").innerHTML='<header><b>AUREVIA Admin</b><span class="n
 $("#tabs").onclick=function(e){var t=e.target.closest("button");if(t)go(t.dataset.t)};
 $("#al").onclick=function(){if(window.Notification)Notification.requestPermission().then(function(p){msg(p=="granted"?"Alerts on. You will be notified while this page is open.":"Alerts were not allowed on this device.")})};
 go("req");counts();setInterval(counts,60000)}
-async function go(t){if(role!=="owner"){var pr=await sb.rpc("my_supervisor_permissions"),allowed=pr.data||["req","ord"];if(pr.error)return msg("Could not verify your permissions. Please refresh or contact the owner.");if(allowed.indexOf(t)<0)return msg("Your supervisor account does not have permission for this section.");}document.querySelectorAll("#tabs button").forEach(function(b){b.className=b.dataset.t==t?"on":""});var m=$("#main");m.onclick=m.oninput=m.onchange=null;TABS.filter(function(x){return x[0]==t})[0][2]()}
+async function go(t){if(role!=="owner"){var pr=await sb.rpc("my_supervisor_permissions"),allowed=pr.data||["req","ord"];if(pr.error)return msg("Could not verify your permissions. Please refresh or contact the owner.");if(allowed.indexOf(t)<0)return msg("Your supervisor account does not have permission for this section.");}if(role==="owner"||t==="req"||t==="ord")sb.from("website_events").insert({event_type:"admin_section_view",page_path:"/admin.html#"+t,visitor_id:"staff-"+(await sb.auth.getUser()).data.user.id,metadata:{section:t,role:role}});document.querySelectorAll("#tabs button").forEach(function(b){b.className=b.dataset.t==t?"on":""});var m=$("#main");m.onclick=m.oninput=m.onchange=null;TABS.filter(function(x){return x[0]==t})[0][2]()}
 async function counts(){var a=await sb.from("submissions").select("id",{count:"exact",head:true}).eq("status","new"),b=await sb.from("orders").select("id",{count:"exact",head:true}).eq("status","new"),n=(a.count||0)+(b.count||0);
 [["req",a.count],["ord",b.count]].forEach(function(x){var e=$("#b-"+x[0]);if(e){e.textContent=x[1]||0;e.hidden=!x[1]}});document.title=(n?"("+n+") ":"")+"AUREVIA Admin";
 if(lastNew!==null&&n>lastNew&&window.Notification&&Notification.permission=="granted")new Notification("AUREVIA: "+(n-lastNew)+" new request(s) or order(s)");lastNew=n}
@@ -128,7 +128,7 @@ var start=since;
 var q=await sb.from("orders").select("id,status,payment_status,created_at").gte("created_at",start).limit(5000);
 var s=await sb.from("submissions").select("id,type,created_at").gte("created_at",start).limit(5000);
 var orders=q.data||[],subs=s.data||[];
-var cards=[["Unique visitors",uniq],["Page views",views],["Active (last 30 min)",period==="1"||period==="7"||period==="30"?active:active],["Button clicks",clicks],["Orders received",orders.length],["Payments received",orders.filter(x=>x.payment_status==="payment received").length],["Enquiries & applications",subs.length]];
+var cards=[["Unique visitors",uniq],["Page views",views],["Active (last 30 min)",active],["Button clicks",clicks],["Admin sign-ins",events.filter(x=>x.event_type==="admin_login").length],["Admin section visits",events.filter(x=>x.event_type==="admin_section_view").length],["Orders received",orders.length],["Payments received",orders.filter(x=>x.payment_status==="payment received").length],["Enquiries & applications",subs.length]];
 $("#an-stats").innerHTML=cards.map(x=>'<div class="card"><div class="n">'+x[0]+'</div><h2>'+x[1]+'</h2></div>').join("");
 var pages={};events.filter(x=>x.event_type==="page_view").forEach(x=>pages[x.page_path]=(pages[x.page_path]||0)+1);
 var sorted=Object.keys(pages).sort((a,b)=>pages[b]-pages[a]);
