@@ -273,5 +273,24 @@ var fa=$("#fa");if(fa)AB(fa);var fo=$("#fo");if(fo)fo.onsubmit=function(e){e.pre
 $("#bg").onclick=function(){var o=$("#mn").classList.toggle("o");this.setAttribute("aria-expanded",o)};
 document.querySelectorAll("#mn [data-wa]").forEach(function(a){a.onclick=function(e){e.preventDefault();wa(a.dataset.wa)}});
 $("#mc").onclick=function(){$("#mn").classList.remove("o");$("#bg").setAttribute("aria-expanded","false")};$("#mn").addEventListener("click",function(e){if(e.target.closest("a")){this.classList.remove("o");$("#bg").setAttribute("aria-expanded","false")}});window.onhashchange=render;render();
+
+/* AUREVIA anonymous website analytics */
+(function(){
+ try{
+  if(!window.AUREVIA||!AUREVIA.url||!AUREVIA.key)return;
+  var k="aurevia_analytics_visitor_v1",vid=localStorage.getItem(k);
+  if(!vid){vid="v_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,18);localStorage.setItem(k,vid)}
+  var lastPath="";
+  function record(type,extra){
+   var path=(location.pathname||"/")+(location.hash||"");
+   if(type==="page_view"&&path===lastPath)return; if(type==="page_view")lastPath=path;
+   fetch(AUREVIA.url+"/rest/v1/website_events",{method:"POST",headers:{apikey:AUREVIA.key,Authorization:"Bearer "+AUREVIA.key,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({event_type:type,page_path:path.slice(0,300),visitor_id:vid,metadata:extra||{}}),keepalive:true}).catch(function(){});
+  }
+  record("page_view",{source:"public_site"});
+  window.addEventListener("hashchange",function(){record("page_view",{source:"public_site"})});
+  document.addEventListener("click",function(e){var el=e.target.closest("a,button,[role=button]");if(!el)return;var label=(el.innerText||el.getAttribute("aria-label")||el.title||"").trim().slice(0,120);if(label)record("click",{label:label})},true);
+ }catch(e){}
+})();
+
 </script>
   </body></html>
