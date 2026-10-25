@@ -293,4 +293,57 @@ $("#mc").onclick=function(){$("#mn").classList.remove("o");$("#bg").setAttribute
 })();
 
 </script>
-  </body></html>
+  
+<style>
+#aur-ai-launch{position:fixed;right:18px;bottom:18px;z-index:90;border:0;border-radius:999px;background:#12402a;color:#fffaf0;padding:14px 18px;font:600 15px Figtree,system-ui,sans-serif;box-shadow:0 5px 22px #0003;cursor:pointer}
+#aur-ai-launch:focus-visible,#aur-ai-send:focus-visible,#aur-ai-close:focus-visible{outline:3px solid #e2c57c;outline-offset:3px}
+#aur-ai-panel{position:fixed;right:16px;bottom:78px;z-index:91;width:min(390px,calc(100vw - 24px));height:min(590px,calc(100dvh - 110px));background:#fffaf0;border:1px solid #e3d9bf;border-radius:18px;box-shadow:0 14px 45px #0003;display:none;overflow:hidden;color:#1d2b22}
+#aur-ai-panel.aur-open{display:flex;flex-direction:column}
+.aur-ai-head{background:#12402a;color:#fffaf0;padding:15px;display:flex;align-items:center;gap:10px}
+.aur-ai-head strong{display:block;font-size:16px}.aur-ai-head small{display:block;color:#e2c57c;font-size:12px;margin-top:3px}
+#aur-ai-close{margin-left:auto;background:transparent;color:#fffaf0;border:1px solid #78917f;border-radius:8px;padding:5px 9px;font-size:18px}
+#aur-ai-messages{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.aur-ai-msg{white-space:pre-wrap;overflow-wrap:anywhere;max-width:92%;padding:10px 12px;border-radius:13px;font-size:14px;line-height:1.5}
+.aur-ai-msg.bot{background:#f0ead9;align-self:flex-start}.aur-ai-msg.user{background:#12402a;color:#fffaf0;align-self:flex-end}
+.aur-ai-msg a{color:#12402a;font-weight:600;text-decoration:underline}.aur-ai-quick{display:flex;flex-wrap:wrap;gap:7px;padding:0 14px 10px}
+.aur-ai-quick button{border:1px solid #12402a;background:#fffaf0;color:#12402a;border-radius:999px;padding:7px 10px;font-size:12px;cursor:pointer}
+.aur-ai-compose{border-top:1px solid #e3d9bf;padding:10px;display:flex;gap:8px;align-items:flex-end}
+#aur-ai-input{min-height:44px;max-height:110px;resize:vertical;flex:1;width:100%;font-size:14px;background:#fff}
+#aur-ai-send{border:0;background:#12402a;color:#fffaf0;border-radius:9px;padding:12px;font-weight:600;cursor:pointer}
+.aur-ai-foot{font-size:10px;color:#5a6a5f;text-align:center;padding:0 10px 9px}
+@media(max-width:480px){#aur-ai-panel{right:8px;bottom:72px;width:calc(100vw - 16px);height:min(620px,calc(100dvh - 92px))}#aur-ai-launch{right:12px;bottom:12px}}
+</style>
+<button id="aur-ai-launch" type="button" aria-controls="aur-ai-panel" aria-expanded="false">💬 Ask AUREVIA</button>
+<section id="aur-ai-panel" role="dialog" aria-label="AUREVIA AI Assistant" aria-modal="false">
+ <div class="aur-ai-head"><div aria-hidden="true">💚</div><div><strong>AUREVIA AI Assistant</strong><small>Your guide to care and support</small></div><button id="aur-ai-close" type="button" aria-label="Close chat">×</button></div>
+ <div id="aur-ai-messages" aria-live="polite"><div class="aur-ai-msg bot">Hello and welcome to AUREVIA Caregiver Agency. I can help you explore our services, understand next steps, and find the right page. What can I help you with today?</div></div>
+ <div class="aur-ai-quick" id="aur-ai-quick">
+  <button type="button" data-question="I need a caregiver for a family member">Find care</button>
+  <button type="button" data-question="How do I request a care assessment?">Care assessment</button>
+  <button type="button" data-question="I want to browse care supplies">Care supplies</button>
+  <button type="button" data-question="How can I contact your team?">Contact AUREVIA</button>
+ </div>
+ <form class="aur-ai-compose" id="aur-ai-form"><textarea id="aur-ai-input" rows="1" maxlength="1200" placeholder="Type your question…" aria-label="Type your question" required></textarea><button id="aur-ai-send" type="submit">Send</button></form>
+ <div class="aur-ai-foot">AI guidance only; not a substitute for medical advice. For urgent medical concerns, contact local emergency services.</div>
+</section>
+<script>
+(function(){
+ var launch=document.getElementById("aur-ai-launch"),panel=document.getElementById("aur-ai-panel"),close=document.getElementById("aur-ai-close"),msgs=document.getElementById("aur-ai-messages"),form=document.getElementById("aur-ai-form"),input=document.getElementById("aur-ai-input"),send=document.getElementById("aur-ai-send"),quick=document.getElementById("aur-ai-quick");
+ if(!launch||!panel||!form)return;
+ var history=[];
+ function toggle(open){panel.classList.toggle("aur-open",open);launch.setAttribute("aria-expanded",String(open));if(open)input.focus()}
+ launch.addEventListener("click",function(){toggle(!panel.classList.contains("aur-open"))});close.addEventListener("click",function(){toggle(false)});
+ function safeLinks(text){var esc=String(text).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");var allowed=["home","services","assess","circle","store","careers","rates","contact","blog","placement","escort","brochure"];return esc.replace(/\[([^\]]{1,100})\]\(#([a-z]+)\)/g,function(all,label,hash){return allowed.indexOf(hash)>=0?'<a href="#'+hash+'">'+label+'</a>':label})}
+ function add(text,who){var el=document.createElement("div");el.className="aur-ai-msg "+who;el.innerHTML=who==="bot"?safeLinks(text):String(text).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");msgs.appendChild(el);msgs.scrollTop=msgs.scrollHeight;return el}
+ async function ask(question){question=String(question||"").trim();if(!question||send.disabled)return;add(question,"user");history.push({role:"user",content:question});if(history.length>12)history=history.slice(-12);input.value="";send.disabled=true;send.textContent="…";var pending=add("Let me check that for you…","bot");
+  try{var response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:history})});var data=await response.json().catch(function(){return{}});if(!response.ok)throw new Error(data.detail||data.error||"I couldn't connect just now. Please try again or contact AUREVIA on WhatsApp.");var answer=String(data.reply||"I couldn't prepare an answer. Please contact our team.");pending.remove();add(answer,"bot");history.push({role:"assistant",content:answer});if(history.length>12)history=history.slice(-12)}
+  catch(err){pending.remove();add(err.message||"Sorry, the assistant is temporarily unavailable. Please use the Contact Us page or WhatsApp link.","bot")}
+  finally{send.disabled=false;send.textContent="Send";input.focus()}
+ }
+ form.addEventListener("submit",function(e){e.preventDefault();ask(input.value)});
+ quick.addEventListener("click",function(e){var b=e.target.closest("button[data-question]");if(b)ask(b.getAttribute("data-question"))});
+ input.addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();form.requestSubmit()}});
+})();
+</script>
+
+</body></html>
