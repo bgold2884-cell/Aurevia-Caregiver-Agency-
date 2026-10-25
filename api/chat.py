@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler
@@ -39,15 +40,54 @@ def send_json(handler, status, payload):
     handler.end_headers()
     handler.wfile.write(data)
 
+def prepared_answer(message):
+    """Free, rule-based guidance used when no paid AI API key is configured."""
+    q = re.sub(r"\s+", " ", message.lower()).strip()
+
+    if any(word in q for word in ("hello", "hi", "good morning", "good afternoon", "good evening", "hey")):
+        return ("Hello and welcome to AUREVIA Caregiver Agency Ltd. 💚 I can help you find care services, "
+                "remote care information, care supplies, careers, or the right enquiry page. "
+                "What would you like help with?\n\n"
+                "[Care Services](#services) · [Contact Us](#contact)")
+    if any(word in q for word in ("caregiver", "care giver", "elderly", "older parent", "family member", "home care", "nursing", "need care", "find care")):
+        return ("AUREVIA can help you explore personalised home-care support and caregiver services. "
+                "To discuss your family's needs, please complete the enquiry/assessment form so the team can review the request. "
+                "Please do not share private medical records in this chat.\n\n"
+                "[Care Services](#services) · [Client Assessment](#assess) · [Contact Us](#contact)")
+    if any(word in q for word in ("remote care", "care circle", "abroad", "distance", "family overseas", "check on")):
+        return ("AUREVIA Care Circle is the website section to explore remote-care coordination for families who want to stay involved from a distance. "
+                "Please use the page for details and contact AUREVIA to confirm what support is available for your situation.\n\n"
+                "[Aurevia Care Circle](#circle) · [Contact Us](#contact)")
+    if any(word in q for word in ("price", "cost", "rate", "how much", "fee", "payment", "afford")):
+        return ("Care costs depend on the service and the family's needs. I don't have verified live prices, so I don't want to give you an incorrect amount. "
+                "Please contact AUREVIA or submit an enquiry so the team can confirm current rates.\n\n"
+                "[Cost & Rates](#rates) · [Client Assessment](#assess) · [Contact Us](#contact)")
+    if any(word in q for word in ("supply", "supplies", "product", "buy", "shop", "equipment")):
+        return ("You can explore AUREVIA's care supplies section for available items. Please check the website for current product details and availability.\n\n[Care Supplies](#store)")
+    if any(word in q for word in ("job", "career", "work", "vacancy", "employment", "apply as", "caregiver role")):
+        return ("Thank you for your interest in working with AUREVIA. Please visit the Careers section to review the available information and next steps.\n\n[Careers](#careers) · [Contact Us](#contact)")
+    if any(word in q for word in ("appointment escort", "escort", "hospital visit", "doctor visit", "hospital appointment")):
+        return ("For support with attending appointments, please explore AUREVIA's Appointment Escort information and contact the team to confirm arrangements and availability.\n\n[Appointment Escort](#escort) · [Contact Us](#contact)")
+    if any(word in q for word in ("brochure", "download", "company profile", "information pack")):
+        return ("You can look for AUREVIA's brochure on the website. If you need help finding it, contact the team.\n\n[Download Brochure](#brochure) · [Contact Us](#contact)")
+    if any(word in q for word in ("blog", "article", "safety", "fall prevention", "advice")):
+        return ("You can explore AUREVIA's blog for care-related articles and general information. Website articles are for guidance and do not replace advice from a qualified healthcare professional.\n\n[Blog](#blog) · [Care Services](#services)")
+    if any(word in q for word in ("contact", "whatsapp", "phone", "email", "talk to", "speak to", "human", "staff", "team")):
+        return ("You can reach AUREVIA through the Contact Us section or the official WhatsApp option displayed on the website. I won't guess contact details, so please use the site's own contact links.\n\n[Contact Us](#contact)")
+    if any(word in q for word in ("assessment", "enquiry", "enquiry form", "assess")):
+        return ("The Client Assessment/enquiry page is the best next step to tell AUREVIA what support you are looking for. Share only the information requested by the form, not sensitive medical records in chat.\n\n[Client Assessment](#assess) · [Contact Us](#contact)")
+    if any(word in q for word in ("placement", "nanny", "live-in", "live in")):
+        return ("Please explore AUREVIA's Placement Options section for information, then contact the team to confirm suitability and current availability.\n\n[Placement Options](#placement) · [Contact Us](#contact)")
+    return ("I can help with common questions about AUREVIA, but this free version uses prepared answers and may not understand every question. "
+            "Choose a topic below or contact the team for personal help.\n\n"
+            "[Care Services](#services) · [Client Assessment](#assess) · [Aurevia Care Circle](#circle) · "
+            "[Care Supplies](#store) · [Careers](#careers) · [Cost & Rates](#rates) · [Contact Us](#contact)")
+
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         send_json(self, 405, {"error": "Method not allowed."})
 
     def do_POST(self):
-        api_key = os.environ.get("OPENAI_API_KEY", "").strip()
-        if not api_key:
-            send_json(self, 503, {"error": "The AI assistant is being configured. Please use the Contact Us page or AUREVIA's WhatsApp option for help."})
-            return
         try:
             length = int(self.headers.get("Content-Length", "0"))
             if length <= 0 or length > 18000:
@@ -72,6 +112,11 @@ class handler(BaseHTTPRequestHandler):
                     cleaned.append({"role": role, "content": content})
             if not cleaned or cleaned[-1]["role"] != "user":
                 send_json(self, 400, {"error": "Please enter a question first."})
+                return
+
+            api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+            if not api_key:
+                send_json(self, 200, {"reply": prepared_answer(cleaned[-1]["content"]), "mode": "prepared"})
                 return
 
             model = os.environ.get("OPENAI_MODEL", "gpt-6-astra").strip()
