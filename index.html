@@ -85,6 +85,8 @@ document.querySelectorAll('footer a[href^="tel:"]').forEach(function(l){l.href="
 document.querySelectorAll('footer a[href^="mailto:"]').forEach(function(l){l.href="mailto:"+CT.email;l.textContent=CT.email});
 var so=document.getElementById("soc");if(so){var ps=[];if(c.facebook)ps.push('<a href="'+esc(c.facebook)+'" target="_blank" rel="noopener">Facebook</a>');if(c.instagram)ps.push('<a href="'+esc(c.instagram)+'" target="_blank" rel="noopener">Instagram</a>');if(ps.length)so.innerHTML=ps.join(" ");else if(c.social)so.textContent=c.social}}
 if(Z.brochure&&Z.brochure.url)DB.bro=Z.brochure.url;DB.posts=a[1]||[];DB.postsLoaded=true;DB.prods=a[2]||[];render()}).catch(function(){DB.postsLoaded=true;render()});
+// Load published articles independently so a slow settings/products request cannot leave direct blog links stuck loading.
+if(DB.ok){Promise.race([api("posts?published=eq.true&order=created_at.desc").then(function(r){if(!r.ok)throw 0;return r.json()}),new Promise(function(_,reject){setTimeout(reject,12000)})]).then(function(posts){DB.posts=posts||[];DB.postsLoaded=true;render()}).catch(function(){DB.postsLoaded=true;render()})}else{DB.postsLoaded=true;}
 </script>
 <script>
 var WA="2348154872481",$=function(s){return document.querySelector(s)};
